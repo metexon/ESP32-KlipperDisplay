@@ -5,29 +5,78 @@
 #include "../../core/printer_integration.hpp"
 #include "../../core/current_printer.h"
 
-enum temp_target{
-    TARGET_HOTEND,
+#define EXTRUDER_COUNT 2  // 1, 2 or 3
+
+enum temp_target_row{
+    TARGET_HOTEND1,
+    TARGET_HOTEND2,
+    TARGET_HOTEND3,
     TARGET_BED,
-    TARGET_HOTEND_CONFIG_1,
-    TARGET_HOTEND_CONFIG_2,
-    TARGET_HOTEND_CONFIG_3,
-    TARGET_BED_CONFIG_1,
-    TARGET_BED_CONFIG_2,
-    TARGET_BED_CONFIG_3,
 };
 
-static temp_target keyboard_target;
+enum temp_target_config{
+    CONFIG_1,
+    CONFIG_2,
+    CONFIG_3,
+    SET_DIRECT,
+};
+constexpr int CONFIG_COUNT = SET_DIRECT+1;
+
+static int keyboard_target;
+
+static inline temp_target_row id2row(int target) {
+    return static_cast<temp_target_row>(target / CONFIG_COUNT);
+}
+static inline temp_target_config id2config(int target) {
+    return static_cast<temp_target_config>(target % CONFIG_COUNT);
+}
+static inline int row_config2target(int row, int config) {
+    return row * CONFIG_COUNT + config;
+}
+
+static PrinterTemperatureDevice row2device(temp_target_row row) {
+    switch (row)
+    {
+    case TARGET_HOTEND1:
+        return PrinterTemperatureDevice::PrinterTemperatureDeviceNozzle1;
+    case TARGET_HOTEND2:
+        return PrinterTemperatureDevice::PrinterTemperatureDeviceNozzle2;
+    case TARGET_HOTEND3:
+        return PrinterTemperatureDevice::PrinterTemperatureDeviceNozzle3;
+    default:
+        return PrinterTemperatureDevice::PrinterTemperatureDeviceBed;
+    }
+}
+
 
 
 static bool temp_edit_mode = false;
 lv_obj_t* root_panel;
 
-static void update_printer_data_hotend_temp(lv_event_t * e){
+static void update_printer_data_extruder_temp(lv_event_t * e){
     lv_obj_t * label = lv_event_get_target(e);
     char hotend_buff[40];
-    sprintf(hotend_buff, "Hotend: %.0f C (Target: %.0f C)", 
+    sprintf(hotend_buff, "Extruder: %.0f C (Target: %.0f C)", 
         get_current_printer_data()->temperatures[PrinterTemperatureDeviceIndex::PrinterTemperatureDeviceIndexNozzle1], 
         get_current_printer_data()->target_temperatures[PrinterTemperatureDeviceIndex::PrinterTemperatureDeviceIndexNozzle1]);
+    lv_label_set_text(label, hotend_buff);
+}
+
+static void update_printer_data_extruder1_temp(lv_event_t * e){
+    lv_obj_t * label = lv_event_get_target(e);
+    char hotend_buff[40];
+    sprintf(hotend_buff, "Extruder1: %.0f C (Target: %.0f C)", 
+        get_current_printer_data()->temperatures[PrinterTemperatureDeviceIndex::PrinterTemperatureDeviceIndexNozzle2], 
+        get_current_printer_data()->target_temperatures[PrinterTemperatureDeviceIndex::PrinterTemperatureDeviceIndexNozzle2]);
+    lv_label_set_text(label, hotend_buff);
+}
+
+static void update_printer_data_extruder2_temp(lv_event_t * e){
+    lv_obj_t * label = lv_event_get_target(e);
+    char hotend_buff[40];
+    sprintf(hotend_buff, "Extruder2: %.0f C (Target: %.0f C)", 
+        get_current_printer_data()->temperatures[PrinterTemperatureDeviceIndex::PrinterTemperatureDeviceIndexNozzle3], 
+        get_current_printer_data()->target_temperatures[PrinterTemperatureDeviceIndex::PrinterTemperatureDeviceIndexNozzle3]);
     lv_label_set_text(label, hotend_buff);
 }
 
@@ -41,21 +90,12 @@ static void update_printer_data_bed_temp(lv_event_t * e){
 }
 
 static short get_temp_preset(int target){
-    switch (target){
-        case TARGET_HOTEND_CONFIG_1:
-            return get_current_printer()->printer_config->hotend_presets[0];
-        case TARGET_HOTEND_CONFIG_2:
-            return get_current_printer()->printer_config->hotend_presets[1];
-        case TARGET_HOTEND_CONFIG_3:
-            return get_current_printer()->printer_config->hotend_presets[2];
-        case TARGET_BED_CONFIG_1:
-            return get_current_printer()->printer_config->bed_presets[0];
-        case TARGET_BED_CONFIG_2:
-            return get_current_printer()->printer_config->bed_presets[1];
-        case TARGET_BED_CONFIG_3:
-            return get_current_printer()->printer_config->bed_presets[2];
-        default:
-            return -1;
+    const temp_target_row row = id2row(target);
+    if (row == TARGET_BED) {
+        return get_current_printer()->printer_config->bed_presets[id2config(target)];
+    }
+    else {
+        return get_current_printer()->printer_config->hotend_presets[id2config(target)];
     }
 }
 
@@ -83,48 +123,31 @@ static void keyboard_callback(lv_event_t * e){
     if (temp < 0 || temp > 500){
         return;
     }
-        
-    switch (keyboard_target){
-        case TARGET_HOTEND:
-            current_printer_set_target_temperature(PrinterTemperatureDevice::PrinterTemperatureDeviceNozzle1, temp);
-            break;
-        case TARGET_BED:
-            current_printer_set_target_temperature(PrinterTemperatureDevice::PrinterTemperatureDeviceBed, temp);
-            break;
-        case TARGET_HOTEND_CONFIG_1:
-            get_current_printer()->printer_config->hotend_presets[0] = temp;
-            UpdateConfig();
-            break;
-        case TARGET_HOTEND_CONFIG_2:
-            get_current_printer()->printer_config->hotend_presets[1] = temp;
-            UpdateConfig();
-            break;
-        case TARGET_HOTEND_CONFIG_3:
-            get_current_printer()->printer_config->hotend_presets[2] = temp;
-            UpdateConfig();
-            break;
-        case TARGET_BED_CONFIG_1:
-            get_current_printer()->printer_config->bed_presets[0] = temp;
-            UpdateConfig();
-            break;
-        case TARGET_BED_CONFIG_2:
-            get_current_printer()->printer_config->bed_presets[1] = temp;
-            UpdateConfig();
-            break;
-        case TARGET_BED_CONFIG_3:
-            get_current_printer()->printer_config->bed_presets[2] = temp;
-            UpdateConfig();
-            break;
+    
+    temp_target_row row = id2row(keyboard_target);
+    temp_target_config config = id2config(keyboard_target);
+
+    if (config == SET_DIRECT) {;
+        current_printer_set_target_temperature(row2device(row), temp);
+        return;
     }
+
+    if (row == TARGET_BED) {
+        get_current_printer()->printer_config->bed_presets[config] = temp;
+    }
+    else {
+        get_current_printer()->printer_config->hotend_presets[config] = temp;
+    }
+    UpdateConfig();
 }
 
 static void show_keyboard_with_hotend(lv_event_t * e){
-    keyboard_target = TARGET_HOTEND;
+    keyboard_target = row_config2target(TARGET_HOTEND1, SET_DIRECT);
     lv_create_keyboard_text_entry(keyboard_callback, "Set Hotend Temp");
 }
 
 static void show_keyboard_with_bed(lv_event_t * e){
-    keyboard_target = TARGET_BED;
+    keyboard_target = row_config2target(TARGET_BED, SET_DIRECT);
     lv_create_keyboard_text_entry(keyboard_callback, "Set Bed Temp");
 }
 
@@ -149,15 +172,13 @@ static void set_temp_via_preset(lv_event_t * e){
     int value = get_temp_preset(target);
 
     if (temp_edit_mode) {
-        keyboard_target = (temp_target)target;
+        keyboard_target = target;
         lv_create_keyboard_text_entry(keyboard_callback, "Set Preset Temp");
         return;
     }
 
-    current_printer_set_target_temperature(target <= TARGET_HOTEND_CONFIG_3
-        ? PrinterTemperatureDevice::PrinterTemperatureDeviceNozzle1
-        : PrinterTemperatureDevice::PrinterTemperatureDeviceBed
-        , value);
+    const temp_target_row row = id2row(target);
+    current_printer_set_target_temperature(row2device(row), value);
 }
 
 static void btn_toggleable_edit(lv_event_t * e){
@@ -251,17 +272,37 @@ void create_charts(lv_obj_t * root)
 void create_temp_buttons(lv_obj_t * root, lv_obj_t * panel)
 {
     const auto element_width = CYD_SCREEN_PANEL_WIDTH_PX - CYD_SCREEN_GAP_PX * 2;
-    lv_obj_t * temp_rows[2] = {0};
-    lv_obj_t * button_temp_rows[2] = {0};
+    lv_obj_t * temp_rows[EXTRUDER_COUNT+1] = {0};
+    lv_obj_t * button_temp_rows[EXTRUDER_COUNT+1] = {0};
 
-    for (int tempIter = 0; tempIter < 2; tempIter++){
+    for (int tempIter = 0; tempIter < EXTRUDER_COUNT+1; tempIter++){
+
+        temp_target_row row = static_cast<temp_target_row>(tempIter);
+        if (tempIter >= EXTRUDER_COUNT){
+            row = TARGET_BED;
+        }
+
         temp_rows[tempIter] = lv_create_empty_panel(root);
         lv_layout_flex_column(temp_rows[tempIter]);
         lv_obj_set_size(temp_rows[tempIter], element_width, LV_SIZE_CONTENT);
 
         lv_obj_t * label = lv_label_create(temp_rows[tempIter]);
         lv_label_set_text(label, "???");
-        lv_obj_add_event_cb(label, (tempIter == 0) ? update_printer_data_hotend_temp : update_printer_data_bed_temp, LV_EVENT_MSG_RECEIVED, NULL);
+        int row_id = static_cast<int>(row);
+        switch(row){
+            case TARGET_BED:
+                lv_obj_add_event_cb(label, update_printer_data_bed_temp, LV_EVENT_MSG_RECEIVED, NULL);
+                break;
+            case TARGET_HOTEND1:
+                lv_obj_add_event_cb(label, update_printer_data_extruder_temp, LV_EVENT_MSG_RECEIVED, NULL);
+                break;
+            case TARGET_HOTEND2:
+                lv_obj_add_event_cb(label, update_printer_data_extruder1_temp, LV_EVENT_MSG_RECEIVED, NULL);
+                break;
+            case TARGET_HOTEND3:
+                lv_obj_add_event_cb(label, update_printer_data_extruder2_temp, LV_EVENT_MSG_RECEIVED, NULL);
+                break;
+        }   
         lv_msg_subscribe_obj(DATA_PRINTER_DATA, label, NULL);
         lv_obj_set_width(label, element_width);
 
@@ -270,20 +311,21 @@ void create_temp_buttons(lv_obj_t * root, lv_obj_t * panel)
         lv_obj_set_size(button_temp_rows[tempIter], element_width, CYD_SCREEN_MIN_BUTTON_HEIGHT_PX);
 
         for (int buttonIter = 0; buttonIter < 3; buttonIter++){
+            const int id = row_config2target(row, static_cast<temp_target_config>(buttonIter));
             lv_obj_t * btn = lv_btn_create(button_temp_rows[tempIter]);
-            lv_obj_add_event_cb(btn, set_temp_via_preset, LV_EVENT_CLICKED, reinterpret_cast<void*>(TARGET_HOTEND_CONFIG_1 + buttonIter + tempIter * 3));
+            lv_obj_add_event_cb(btn, set_temp_via_preset, LV_EVENT_CLICKED, reinterpret_cast<void*>(id));
             lv_obj_set_flex_grow(btn, 1);
             lv_obj_set_height(btn, CYD_SCREEN_MIN_BUTTON_HEIGHT_PX);
 
             label = lv_label_create(btn);
             lv_label_set_text(label, "???");
             lv_obj_center(label);
-            lv_obj_add_event_cb(label, update_temp_preset_label, LV_EVENT_MSG_RECEIVED, reinterpret_cast<void*>(TARGET_HOTEND_CONFIG_1 + buttonIter + tempIter * 3));
+            lv_obj_add_event_cb(label, update_temp_preset_label, LV_EVENT_MSG_RECEIVED, reinterpret_cast<void*>(id));
             lv_msg_subscribe_obj(DATA_PRINTER_TEMP_PRESET, label, NULL);
         }
 
         lv_obj_t * btn = lv_btn_create(button_temp_rows[tempIter]);
-        lv_obj_add_event_cb(btn, (tempIter == 0) ? show_keyboard_with_hotend : show_keyboard_with_bed, LV_EVENT_CLICKED, panel);
+        lv_obj_add_event_cb(btn, (row == TARGET_BED) ? show_keyboard_with_bed : show_keyboard_with_hotend, LV_EVENT_CLICKED, panel);
         lv_obj_set_flex_grow(btn, 1);
         lv_obj_set_height(btn, CYD_SCREEN_MIN_BUTTON_HEIGHT_PX);
 

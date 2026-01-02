@@ -45,6 +45,16 @@ void KlipperPrinter::parse_state(JsonDocument &in)
             printer_data.smooth_time = status["extruder"]["smooth_time"];
             printer_data.can_extrude = can_extrude == true;
         }
+        if (status.containsKey("extruder1"))
+        {
+            printer_data.temperatures[PrinterTemperatureDeviceIndexNozzle2] = status["extruder1"]["temperature"];
+            printer_data.target_temperatures[PrinterTemperatureDeviceIndexNozzle2] = status["extruder1"]["target"];
+        }
+        if (status.containsKey("extruder2"))
+        {
+            printer_data.temperatures[PrinterTemperatureDeviceIndexNozzle3] = status["extruder2"]["temperature"];
+            printer_data.target_temperatures[PrinterTemperatureDeviceIndexNozzle3] = status["extruder2"]["target"];
+        }
 
         if (status.containsKey("heater_bed"))
         {

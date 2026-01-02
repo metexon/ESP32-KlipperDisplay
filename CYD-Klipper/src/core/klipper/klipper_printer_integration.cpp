@@ -172,7 +172,7 @@ bool KlipperPrinter::connect()
 bool KlipperPrinter::fetch()
 {
     HTTPClient client;
-    configure_http_client(client, "/printer/objects/query?extruder&heater_bed&toolhead&gcode_move&virtual_sdcard&print_stats&webhooks&fan&display_status", true, 1000);
+    configure_http_client(client, "/printer/objects/query?extruder&extruder1&extruder2&heater_bed&toolhead&gcode_move&virtual_sdcard&print_stats&webhooks&fan&display_status", true, 1000);
 
     int http_code = client.GET();
     if (http_code == 200)
