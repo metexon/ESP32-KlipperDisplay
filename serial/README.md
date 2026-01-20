@@ -2,6 +2,24 @@
 
 This section elaborates on how the host side (linux) should be set up to handle incoming CYD-Klipper requests.
 
+## Install (OpenOrangeStorm)
+
+* ssh into klipper host
+* go to home dir: `cd`
+* `git clone https://github.com/metexon/ESP32-KlipperDisplay`
+* `cd ESP32-KlipperDisplay`
+* (TODO) `git checkout openorangestorm`
+* `cd serial`
+* `chmod a+x install_openorangestorm.sh`
+* `sudo ./install_openorangestorm.sh`
+
+## Uninstall (OpenOrangeStorm)
+
+* go to home dir: `cd`
+* `cd ESP32-KlipperDisplay/serial`
+* `chmod a+x uninstall.sh`
+* `sudo ./uninstall.sh`
+
 ## Install (Linux)
 
 1. Log into your host running klipper 

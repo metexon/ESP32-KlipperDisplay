@@ -73,7 +73,12 @@ def find_esp32() -> bool:
         if port.vid == 0x10C4 and port.pid == 0xEA60:
             possible_devices.append(port)
         elif port.vid == 0x1A86 and port.pid == 0x7523:
+            possible_devices.append(port)        
+        elif port.vid == 0x1A86 and port.pid == 0x55d3:
+            # WaveShare display, "UART1" USB connector, appears as QinHeng Electronics USB Single Serial in lsusb
             possible_devices.append(port)
+
+        
     
     if len(possible_devices) == 1:
         SERIAL_PORT = possible_devices[0].device
